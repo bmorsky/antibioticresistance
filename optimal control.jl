@@ -1,4 +1,4 @@
-# Simulations
+# Optimal control for the mean field model
 using Plots, Distributions, DifferentialEquations
 
 b = 0.001
