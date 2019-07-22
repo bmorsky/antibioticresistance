@@ -1,38 +1,48 @@
-# Simulations
+# Simulations for the stochastic model for a given protocol. Results plotted as a time series for the protocol vs a constant antibiotic application
 using Plots, Distributions
 
-# Parameters/variables
-T = 480; # Number of turns
-period = 3;
-num_per = T/(2*period);
-t = collect(0:T);
-num_sims = 100;
-output1 = zeros(2*(T+1)*num_sims,4);
-total_output1 = zeros((T+1)*num_sims,3);
-output2 = zeros(2*(T+1)*num_sims,4);
-total_output2 = zeros((T+1)*num_sims,3);
-Pop = 900000;
-K = 1000000.0;
-m = 0.00015; # Mutation rate
-b = 0.1;#0.3; # plasmid transfer rate
-d = 0.85;#0.9; # Death rate
-w_r = 1;#1.04; # Growth rate of the resistant type in the antibiotic regime
-w = 1.01;#1.05; # Growth rate in the antibiotic-free regime
-s = 0.02;#0.02; # Selective advantage of the susceptible type in the antibiotic-free regime
+#Parameters
+m = 0.00015; #mutation rate
+b = 0.1;#0.3; #plasmid transfer rate
+d = 0.85;#0.9; #death rate
+I = [1.0, 0.5]; #susceptible type interspecific competition parameters (antibiotic off)
+I_r = [2.0, 1.0]; #resistant type interspecific competition parameters (antibiotic off)
+Ia = [1.0, 2.0]; #susceptible type interspecific competition parameters (antibiotic on)
+Ia_r = [0.5, 1.0]; #resistant type interspecific competition parameters (antibiotic on)
+init_pop = 900; #initial population size
+K = 1000.0; #carrying capacity
+num_sims = 100; #number of simulations per parameter combination
+w_r = 1;#1.04; #growth rate of the resistant type in the antibiotic regime
+w = 1.01;#1.05; #growth rate in the antibiotic-free regime
+s = 0.02;#0.02; # elective advantage of the susceptible type in the antibiotic-free regime
+
+#Protocol parameters
+dur_off = 3; #duration the antibiotic is off
+dur_on = 3; #duration the antibiotic is on
+num_periods = 80; #number of periods
+num_turns = num_periods*(dur_on+dur_off); #number of turns
+
+#Output
+t = collect(0:num_turns);
+output1 = zeros(2*(num_turns+1)*num_sims,4);
+total_output1 = zeros((num_turns+1)*num_sims,3);
+output2 = zeros(2*(num_turns+1)*num_sims,4);
+total_output2 = zeros((num_turns+1)*num_sims,3);
+
+#Variables to track
 work1 = 0;
 work2 = 0;
-I = [1.0, 0.5];
-I_r = [2.0, 1.0];
-Ia = [1.0, 2.0];
-Ia_r = [0.5, 1.0];
+n1 = zeros(1,2); #number of susceptible and resistant bacteria for the protocol
+n2 = zeros(1,2); #number of susceptible and resistant bacteria for the constant antibiotic application case
 
+#Dynamics for when the antibiotic is on
 function antibioticOn(period,output)
 	N = zeros(period+1,2);
 	N[1,1] = output[1];
 	N[1,2] = output[2];
-	for t = 2:period+1 #for(i in 2:gens+1)	{  #simulate W-F model starting with init.num mutants
+	for t = 2:period+1
 		N[t,1] = rand(Poisson(max(d*N[t-1,1]*(1 - dot(N[t,:],Ia)/K),0)));
-		N[t,2] = rand(Poisson(max(w_r*N[t-1,2]*(1 - dot(N[t,:],Ia_r)/K),0))); #generate the next j as a single binomial random variable with parameters N and p.star
+		N[t,2] = rand(Poisson(max(w_r*N[t-1,2]*(1 - dot(N[t,:],Ia_r)/K),0)));
 		if N[t,2] > 1000000
 			N[t,2] = 1000000;
 		end
@@ -45,13 +55,14 @@ function antibioticOn(period,output)
 	return N[2:end,:]
 end
 
+#Dynamics for when the antibiotic is off
 function antibioticOff(period,output)
 	N = zeros(period+1,2);
 	N[1,1] = output[1];
 	N[1,2] = output[2];
-	for t = 2:period+1 #for(i in 2:gens+1)	{  #simulate W-F model starting with init.num mutants
+	for t = 2:period+1
 		N[t,1] = rand(Poisson(max((w+s)*N[t-1,1]*(1 - dot(N[t,:],I)/K),0)));
-		N[t,2] = rand(Poisson(max(w*N[t-1,2]*(1 - dot(N[t,:],I_r)/K),0))); #generate the next j as a single binomial random variable with parameters N and p.star
+		N[t,2] = rand(Poisson(max(w*N[t-1,2]*(1 - dot(N[t,:],I_r)/K),0)));
 		if N[t,2] > 1000000
 			N[t,2] = 1000000;
 		end
@@ -63,35 +74,35 @@ function antibioticOff(period,output)
 	end
 	return N[2:end,:]
 end
-	n1 = zeros(1,2);
-	n2 = zeros(1,2);
-#for k = 2:T #this loops over the number of replicate runs
 
+#Runs simulations
 for sim = 1:num_sims
+	#Initialize population
 	n1 = zeros(1,2);
 	n2 = zeros(1,2);
-	n1[1,1] = Pop; # Initial population
-	n1[1,2] = 0;
-	n2[1,1] = Pop; # Initial population
-	n2[1,2] = 0;
-	for p = 1:num_per
+	n1[1,1] = init_pop; #initial number of susceptible type for the protocol
+	n1[1,2] = 0; #initial number of resistant type for the protocol
+	n2[1,1] = init_pop; #initial number of susceptible type for the constant antibiotic application case
+	n2[1,2] = 0; #initial number of resistant type for the constant antibiotic application case
+	for p = 1:num_periods
 		#if sum(output[end,:]) == 0
 		#	break;
 		#end
-		n1 = vcat(n1, antibioticOn(3,n1[end,:]));
-		n1 = vcat(n1, antibioticOff(3,n1[end,:]));
-		n2 = vcat(n2, antibioticOn(6,n2[end,:]));
+		n1 = vcat(n1, antibioticOn(dur_on,n1[end,:])); #apply antibiotic for dur_on turns
+		n1 = vcat(n1, antibioticOff(dur_off,n1[end,:])); #no antibiotic for dur_off turns
+		n2 = vcat(n2, antibioticOn(dur_on+dur_off,n2[end,:])); #apply antibiotic for dur_on+dur_off turns
 	end
 	work1 += sum(n1[end,:])/1000;
 	work2 += sum(n2[end,:])/1000;
-	output1[(2*T+2)*(sim-1)+1:(2*T+2)*sim,:] = [vcat(t,t) reshape(n1,(2*size(n1,1),1)) vcat((2*sim-1)*ones(size(n1,1),1),2*sim*ones(size(n1,1),1)) vcat(zeros(size(n1,1),1),ones(size(n1,1),1))];
-	total_output1[(T+1)*(sim-1)+1:(T+1)*sim,:] = [t sum(n1,2) sim*ones(size(n1,1),1)];
+	output1[(2*num_turns+2)*(sim-1)+1:(2*num_turns+2)*sim,:] = [vcat(t,t) reshape(n1,(2*size(n1,1),1)) vcat((2*sim-1)*ones(size(n1,1),1),2*sim*ones(size(n1,1),1)) vcat(zeros(size(n1,1),1),ones(size(n1,1),1))];
+	total_output1[(num_turns+1)*(sim-1)+1:(num_turns+1)*sim,:] = [t sum(n1,2) sim*ones(size(n1,1),1)];
 	total_output1[total_output1[:,2].>1000,2] .= 1000;
-	output2[(2*T+2)*(sim-1)+1:(2*T+2)*sim,:] = [vcat(t,t) reshape(n2,(2*size(n2,1),1)) vcat((2*sim-1)*ones(size(n2,1),1),2*sim*ones(size(n2,1),1)) vcat(zeros(size(n2,1),1),ones(size(n2,1),1))];
-	total_output2[(T+1)*(sim-1)+1:(T+1)*sim,:] = [t sum(n2,2) sim*ones(size(n2,1),1)];
+	output2[(2*num_turns+2)*(sim-1)+1:(2*num_turns+2)*sim,:] = [vcat(t,t) reshape(n2,(2*size(n2,1),1)) vcat((2*sim-1)*ones(size(n2,1),1),2*sim*ones(size(n2,1),1)) vcat(zeros(size(n2,1),1),ones(size(n2,1),1))];
+	total_output2[(num_turns+1)*(sim-1)+1:(num_turns+1)*sim,:] = [t sum(n2,2) sim*ones(size(n2,1),1)];
 	total_output2[total_output2[:,2].>1000,2] .= 1000;
 end
 
+#R code to generate figure
 using RCall
 @rput output1 total_output1 output2 total_output2;
 R"""
@@ -106,18 +117,17 @@ total_output1 <- as.data.frame(total_output1)
 output2 <- as.data.frame(output2)
 total_output2 <- as.data.frame(total_output2)
 
-ts <- ggplot() + theme(legend.position="none") + labs(x = "time", y = "Bacterial load") + scale_x_continuous(expand = c(0, 0),limits = c(0,505)) + scale_y_continuous(expand = c(0, 0),limits = c(0,1000000))
-output1 <- ts + geom_line(alpha=0.25,data=output1,aes(x=V1,y=V2,group=factor(V3),color=factor(V4))) + ggtitle("Fixed length pulses") + scale_color_manual(values=c("blue","red"),guide=FALSE) + aes(color = V3)
-total_output1 <- ts + geom_line(alpha=0.25,data=total_output1,aes(x=V1,y=V2,group=factor(V3))) + ggtitle("Fixed length pulses") + scale_color_manual(values=c("black"),guide=FALSE)
-output2 <- ts + geom_line(alpha=0.25,data=output2,aes(x=V1,y=V2,group=factor(V3),color=factor(V4))) + ggtitle("Fixed length pulses") + scale_color_manual(values=c("blue","red"),guide=FALSE) + aes(color = V3)
-total_output2 <- ts + geom_line(alpha=0.25,data=total_output2,aes(x=V1,y=V2,group=factor(V3))) + ggtitle("Fixed length pulses") + scale_color_manual(values=c("black"),guide=FALSE)
-
+ts <- ggplot() + theme(legend.position="none") + labs(x = "time", y = "Bacterial load") + scale_x_continuous(expand = c(0, 0),limits = c(0,505)) + scale_y_continuous(expand = c(0, 0),limits = c(0,1000))
+output1 <- ts + geom_line(alpha=0.25,data=output1,aes(x=V1,y=V2,group=factor(V3),color=factor(V4))) + ggtitle("Protocol") + scale_color_manual(values=c("blue","red"),guide=FALSE) + aes(color = V3)
+total_output1 <- ts + geom_line(alpha=0.25,data=total_output1,aes(x=V1,y=V2,group=factor(V3))) + ggtitle("Protocol") + scale_color_manual(values=c("black"),guide=FALSE)
+output2 <- ts + geom_line(alpha=0.25,data=output2,aes(x=V1,y=V2,group=factor(V3),color=factor(V4))) + ggtitle("Constant application") + scale_color_manual(values=c("blue","red"),guide=FALSE) + aes(color = V3)
+total_output2 <- ts + geom_line(alpha=0.25,data=total_output2,aes(x=V1,y=V2,group=factor(V3))) + ggtitle("Constant application") + scale_color_manual(values=c("black"),guide=FALSE)
 
 plot_out <- plot_grid(output1,output2,labels=letters[1:2],label_fontfamily="LM Roman 10",ncol=2)
-save_plot(plot_out,filename="~/Documents/Notre Dame/ND paper 2/Code/ts_fixed_pulsed_noK.png",base_height = 5,base_width = 10)
+save_plot(plot_out,filename="~/Documents/Notre Dame/ND paper 2/Code/ts_protocol_vs_constant_app.png",base_height = 5,base_width = 10)
 """
 
-		#p = N[t-1,1]*(1+s)*(1-m)/(N[t-1,1]*(1+s)+N[t-1,2]);  #compute the post-selection expected frequency
+#p = N[t-1,1]*(1+s)*(1-m)/(N[t-1,1]*(1+s)+N[t-1,2]);  #compute the post-selection expected frequency
 # This simualates the Wright-Fisher Model of selection and random genetic drift
 # for an asexual organism with two alleles and no mutation
 # By R. Gomulkiewicz (5 September 2013)
