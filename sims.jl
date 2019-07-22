@@ -2,7 +2,6 @@
 using Plots, Distributions
 
 #Parameters
-m = 0.00015; #mutation rate
 b = 0.1;#0.3; #plasmid transfer rate
 d = 0.85;#0.9; #death rate
 I = [1.0, 0.5]; #susceptible type interspecific competition parameters (antibiotic off)
@@ -11,6 +10,7 @@ Ia = [1.0, 2.0]; #susceptible type interspecific competition parameters (antibio
 Ia_r = [0.5, 1.0]; #resistant type interspecific competition parameters (antibiotic on)
 init_pop = 900; #initial population size
 K = 1000.0; #carrying capacity
+m = 0.00015; #mutation rate
 num_sims = 100; #number of simulations per parameter combination
 w_r = 1;#1.04; #growth rate of the resistant type in the antibiotic regime
 w = 1.01;#1.05; #growth rate in the antibiotic-free regime
