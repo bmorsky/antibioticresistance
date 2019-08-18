@@ -51,10 +51,11 @@ sol = solve(prob,Tsit5(),callback=cb) #solve
 plot(sol,ylims = (0,K+10)) #plot in julia
 
 #for plotting in R
-output = [sol[1,:] sol.t[:] zeros(length(sol[1,:]),1); sol[2,:] sol.t[:] ones(length(sol[2,:]),1);] #output
+output = [sol[1,:] sol.t[:] zeros(length(sol[1,:]),1); sol[2,:] sol.t[:] ones(length(sol[2,:]),1)] #output
+protocol = [sol[5,:] sol.t[:]] #the protocol
 #R code to generate figure
 using RCall
-@rput output;
+@rput output protocol;
 R"""
 library(ggplot2)
 library(cowplot)
@@ -64,11 +65,17 @@ library("reshape2")
 
 output <- as.data.frame(output)
 names(output) <- c("Number","Time","Type")
+protocol <- as.data.frame(protocol)
+names(protocol) <- c("Antibiotic","Time")
 
-ts <- ggplot() + theme(legend.title=element_blank(),legend.position=c(.65,.25),text = element_text(family = "LM Roman 10")) + labs(x = "Time", y = "Bacterial load") + scale_x_continuous(expand = c(0, 0),limits = c(0,20)) + scale_y_continuous(expand = c(0, 0),limits = c(0,1010))
-output <- ts + geom_line(data=output,aes(x=Time,y=Number,group=Type),size=1) + ggtitle("Time series for the optimal control")+ scale_color_manual(values=c("blue","red"),labels = c("Susceptible", "Resistant")) + aes(color = factor(Type))
+ts <- ggplot() + scale_x_continuous(expand = c(0, 0),limits = c(0,20))
 
-save_plot(output,filename="~/Documents/Notre Dame/ND paper 2/Code/ts_optimal_control.png")
+output <- ts + geom_line(data=output,aes(x=Time,y=Number,group=Type),size=1) + ggtitle("Time series for the optimal control")+ scale_color_manual(values=c("blue","red"),labels = c("Susceptible", "Resistant")) + aes(color = factor(Type)) + theme(legend.title=element_blank(),legend.position=c(.65,.25),text = element_text(family = "LM Roman 10")) + labs(x = "Time", y = "Bacterial load") + scale_y_continuous(expand = c(0, 0),limits = c(0,1010))
+
+protocol <- ts + geom_line(data=protocol,aes(x=Time,y=Antibiotic),size=1) + ggtitle("Time series for the optimal control") + theme(legend.title=element_blank(),text = element_text(family = "LM Roman 10")) + labs(x = "Time", y = "Antibiotic") + scale_y_continuous(expand = c(0, 0),limits = c(0,1.1))
+
+plot_out <- plot_grid(output,protocol,labels=letters[1:2],label_fontfamily="LM Roman 10",ncol=2)
+save_plot(plot_out,filename="~/Documents/Notre Dame/ND paper 2/Code/ts_optimal.png",base_height = 5,base_width = 10)
 """
 
 ################ OLD CODE BELOW #####################
