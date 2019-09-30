@@ -1,19 +1,23 @@
-# Optimal control for the mean field model.
+# Optimal control for the mean field model. Finds the optimal protocol for an
+# initial condition of 900 susceptible bacteria by solving the state and adjoint
+# equations. However, it does not prevent the emergence and establishment of the
+# resistant type. Plots the time series of susceptible and resistance bacteria
+# and the protocol.
 using Plots, Distributions, DifferentialEquations
 
 #Parameters
-b = 0.1;#0.3; #plasmid transfer rate
-d = -0.85;#0.9; #death rate
-I = [1.0, 0.5]; #susceptible type interspecific competition parameters (antibiotic off)
-I_r = [2.0, 1.0]; #resistant type interspecific competition parameters (antibiotic off)
-Ia = [1.0, 2.0]; #susceptible type interspecific competition parameters (antibiotic on)
-Ia_r = [0.5, 1.0]; #resistant type interspecific competition parameters (antibiotic on)
-init_pop = 900.0; #initial population size
-K = 1000.0; #carrying capacity
-m = 0.00015; #mutation rate
-w_r = 1;#1.04; #growth rate of the resistant type in the antibiotic regime
-w = 1.01;#1.05; #growth rate in the antibiotic-free regime
-s = 0.02;#0.02; # elective advantage of the susceptible type in the antibiotic-free regime
+b = 0.1 #plasmid transfer rate
+d = -0.85 #death rate
+I = [1.0, 0.5] #susceptible type interspecific competition parameters (antibiotic off)
+I_r = [2.0, 1.0] #resistant type interspecific competition parameters (antibiotic off)
+Ia = [1.0, 2.0] #susceptible type interspecific competition parameters (antibiotic on)
+Ia_r = [0.5, 1.0] #resistant type interspecific competition parameters (antibiotic on)
+init_pop = 900.0 #initial population size
+K = 1000.0 #carrying capacity
+m = 0.00015 #mutation rate
+w_r = 1 #growth rate of the resistant type in the antibiotic regime
+w = 1.01 #growth rate in the antibiotic-free regime
+s = 0.02 #elective advantage of the susceptible type in the antibiotic-free regime
 
 #System of ODEs: u[1] susceptible type, u[2] resistant type, u[3] adjoit equation for u[1], adjoint equation for u[2], control u[5].
 function f(du,u,a,t)
@@ -59,9 +63,7 @@ using RCall
 R"""
 library(ggplot2)
 library(cowplot)
-library(extrafont)
-loadfonts()
-library("reshape2")
+theme_set(theme_cowplot())
 
 output <- as.data.frame(output)
 names(output) <- c("Number","Time","Type")
@@ -70,12 +72,12 @@ names(protocol) <- c("Antibiotic","Time")
 
 ts <- ggplot() + scale_x_continuous(expand = c(0, 0),limits = c(0,20))
 
-output <- ts + geom_line(data=output,aes(x=Time,y=Number,group=Type),size=1) + ggtitle("Time series for the optimal control")+ scale_color_manual(values=c("blue","red"),labels = c("Susceptible", "Resistant")) + aes(color = factor(Type)) + theme(legend.title=element_blank(),legend.position=c(.65,.25),text = element_text(family = "LM Roman 10")) + labs(x = "Time", y = "Bacterial load") + scale_y_continuous(expand = c(0, 0),limits = c(0,1010))
+output <- ts + geom_line(data=output,aes(x=Time,y=Number,group=Type),size=1) + ggtitle("Time series for the optimal control")+ scale_color_manual(values=c("blue","red"),labels = c("Susceptible", "Resistant")) + aes(color = factor(Type)) + theme(legend.title=element_blank(),legend.position=c(.65,.25)) + labs(x = "Time", y = "Bacterial load") + scale_y_continuous(expand = c(0, 0),limits = c(0,1010))
 
-protocol <- ts + geom_line(data=protocol,aes(x=Time,y=Antibiotic),size=1) + ggtitle("Time series for the optimal control") + theme(legend.title=element_blank(),text = element_text(family = "LM Roman 10")) + labs(x = "Time", y = "Antibiotic") + scale_y_continuous(expand = c(0, 0),limits = c(0,1.1))
+protocol <- ts + geom_line(data=protocol,aes(x=Time,y=Antibiotic),size=1) + ggtitle("Time series for the optimal control") + theme(legend.title=element_blank()) + labs(x = "Time", y = "Antibiotic") + scale_y_continuous(expand = c(0, 0),limits = c(0,1.1))
 
-plot_out <- plot_grid(output,protocol,labels=letters[1:2],label_fontfamily="LM Roman 10",ncol=2)
-save_plot(plot_out,filename="~/Documents/Notre Dame/ND paper 2/Code/ts_optimal.png",base_height = 5,base_width = 10)
+plot_out <- plot_grid(output,protocol,labels=letters[1:2],ncol=2)
+save_plot(plot_out,filename="~/Documents/Notre Dame/ND paper 2/Code/ts_optimal_test.png",base_height = 5,base_width = 10)
 """
 
 ################ OLD CODE BELOW #####################
