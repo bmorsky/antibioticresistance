@@ -96,10 +96,10 @@ for sim = 1:num_sims
 	global work1 += sum(n1[end,:])/1000
 	global work2 += sum(n2[end,:])/1000
 	output1[(2*num_turns+2)*(sim-1)+1:(2*num_turns+2)*sim,:] = [vcat(t,t) reshape(n1,(2*size(n1,1),1)) vcat((2*sim-1)*ones(size(n1,1),1),2*sim*ones(size(n1,1),1)) vcat(zeros(size(n1,1),1),ones(size(n1,1),1))]
-	total_output1[(num_turns+1)*(sim-1)+1:(num_turns+1)*sim,:] = [t sum(n1,2) sim*ones(size(n1,1),1)]
+	total_output1[(num_turns+1)*(sim-1)+1:(num_turns+1)*sim,:] = [t sum(n1,dims=2) sim*ones(size(n1,1),1)]
 	total_output1[total_output1[:,2].>1000,2] .= 1000
 	output2[(2*num_turns+2)*(sim-1)+1:(2*num_turns+2)*sim,:] = [vcat(t,t) reshape(n2,(2*size(n2,1),1)) vcat((2*sim-1)*ones(size(n2,1),1),2*sim*ones(size(n2,1),1)) vcat(zeros(size(n2,1),1),ones(size(n2,1),1))]
-	total_output2[(num_turns+1)*(sim-1)+1:(num_turns+1)*sim,:] = [t sum(n2,2) sim*ones(size(n2,1),1)]
+	total_output2[(num_turns+1)*(sim-1)+1:(num_turns+1)*sim,:] = [t sum(n2,dims=2) sim*ones(size(n2,1),1)]
 	total_output2[total_output2[:,2].>1000,2] .= 1000
 end
 
