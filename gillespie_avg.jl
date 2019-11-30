@@ -1,35 +1,57 @@
 # Simulations for the stochastic model for a given protocol. Results plotted as
 # a time series for the protocol.
-using DiffEqBiological, DifferentialEquations, Distributions, Plots
+using DiffEqBiological, DifferentialEquations, Plots, Statistics
 
-num_sims = 100
-control = 500 # initial input rate of bacteria
-time = 500 # length of process
-X₀ = 1e3 # initial number of susceptible, n₁
+num_sims = 10
+control = 10 # initial input rate of bacteria
+time = 1000 # length of process
+X₀ = 1e4 # initial number of susceptible, n₁
 
 # Stochastic LV chemical reaction system
 # Parameters, times are per hour
-b₁ = 0.06
-d₁ = 0.04
-b₂ = 0.006
-d₂ = 0.005
-γ₁₁ = 0#1.5*1e-5
-γ₁₂ = 0#1.5*0.5e-5  #0.88e-4
-γ₂₁ = 0#1.5*2e-5  #1.136e-4
-γ₂₂ = 0#1.5*1e-5
-α₁ = 0.025
-α₂ = 0#0.001*α₁
-μ = 1e-6
-ζ = 0.0
-η = 0 #4e-3
-controlrate = 0
-rates = (b₁, d₁, b₂, d₂, γ₁₁, γ₁₂, γ₂₁, γ₂₂, α₁, α₂, μ, ζ, η, controlrate)
+
+# Parameters
+b₁ = 0.02 # susceptible birth rate
+d₁ = 0.014 # susceptible death rate
+b₂ = 0.01 # resistant birth rate
+d₂ = 0.005 # resistant death rate
+γ₁₁ = 1e-6 # susceptible death rate from other susceptible
+γ₁₂ = 1e-6 # susceptible death rate from resistant
+γ₂₁ = 1e-6 # resistant death rate from susceptible
+γ₂₂ = 1e-6 # resistant death rate from other resistant
+α₁ = 0.0008 # susceptible death rate from antibiotic
+α₂ = 0.00015 # resistant death rate from antibiotic
+μ = 1e-6 # mutation rate
+μₐ = 10*μ # mutation rate cause by antibiotic
+η = 0 #4e-3 # pasmid transfer rate
+init_pop = 1e4 #initial population size
+
+# Initial conditions
+antibiotic_amount = 100.0 # amount of antibiotic when on
+# durOn = 700 # durtation the antibiotic is on
+# durOff = 1500 # duration the antibiotic is off
+
+# b₁ = 0.04
+# d₁ = 0.03
+# b₂ = 0.03
+# d₂ = 0.02
+# γ₁₁ = 1e-4
+# γ₁₂ = 0.88e-4
+# γ₂₁ = 1.136e-4
+# γ₂₂ = 1e-4
+# α₁ = 0.0012
+# α₂ = 0
+# μ = 1.5e-8
+# ζ = 0.0
+# η = 0 #4e-3
+# controlrate = 0
+rates = (b₁, d₁, b₂, d₂, γ₁₁, γ₁₂, γ₂₁, γ₂₂, α₁, α₂, μ, μₐ, η)
 LV_model = @reaction_network begin
     b₁, n₁ → 2n₁ # n₁ birth
     d₁, n₁ → 0 # n₁ death
 	b₂, n₂ → 2n₂ # n₂ birth
 	d₂, n₂ → 0 # n₂ death
-	(controlrate)*γ₁₁, n₁ + n₁ → 0 # self competition of n₁
+	γ₁₁, n₁ + n₁ → 0 # self competition of n₁
 	γ₁₂, n₁ + n₂ → 0 # competition to n₁ from n₂
 	γ₂₁, n₂ + n₁ → 0 # competition to n₂ from n₁
 	γ₂₂, n₂ + n₂ → 0 # self competition of n₂
@@ -37,15 +59,13 @@ LV_model = @reaction_network begin
 	α₂, a + n₂ → a # death by antibiotic, α₂ < α₁
 	μ, n₁ → n₂ # mutation
 	μ, n₂ → n₁ # mutation
-	20*μ, a + n₁ → a + n₂ # mutation due to stress from the antibiotic
-	ζ, a → 0 # dissipation of the antibiotic
+	μₐ, a + n₁ → a + n₂ # mutation due to stress from the antibiotic
 	η, n₁ + n₂ → 2n₂ # plasmid (resistance) transfer
-	controlrate, 0 → a # inflow of antibiotic
-end b₁ d₁ b₂ d₂ γ₁₁ γ₁₂ γ₂₁ γ₂₂ α₁ α₂ μ ζ η controlrate
+end b₁ d₁ b₂ d₂ γ₁₁ γ₁₂ γ₂₁ γ₂₂ α₁ α₂ μ μₐ η
 
 # Solve system for various protocols averaged 100 times
 step_length = 1
-num_steps = 10
+num_steps = 50
 period = step_length*num_steps
 function runSim()
 	output_mean = zeros(convert(Int64,num_steps*(num_steps-1)/2),3)
@@ -69,7 +89,7 @@ function runSim()
 				t in (protocolOff)
 			end
 			function conditionStop(u,t,integrator)
-				u[1]+u[2] == 0
+				(u[1]+u[2] == 0) | (u[2] > 50)
 			end
 			function affectOn!(integrator) # effect that occurs when the condition is met
 				#integrator.u[3] += 200
@@ -89,7 +109,8 @@ function runSim()
 				prob = DiscreteProblem([X₀; 0; control],(0.0,time),rates)
 				jump_prob = JumpProblem(prob,Direct(),LV_model)
 				sol = solve(jump_prob,FunctionMap(),callback=cbs,tstops=protocol)
-				result[sim] = floor(0.5*(sign(time - sol.t[end])+1)) #sum(sol[1:2,end])
+				result[sim] = 1 - min(sol[1,end] + sol[2,end], 1.0)
+				#result[sim] = floor(0.5*(sign(time - sol.t[end])+1)) #sum(sol[1:2,end])
 				result_time[sim] = 1-sol.t[end]/time
 			end
 			output_mean[count,:] = [durOn durOff mean(result)]
@@ -108,18 +129,18 @@ output_muX0_mean = zeros(10^2,3)
 output_muX0_std = zeros(10^2,3)
 time_muX0_mean = zeros(10^2,3)
 time_muX0_std = zeros(10^2,3)
-# global count = 1
-# for X₀ = 100:100:1000
-# 	for μ = 1e-6:1e-6:1e-5
-# 		rates = (b₁, d₁, b₂, d₂, γ₁₁, γ₁₂, γ₂₁, γ₂₂, α₁, α₂, μ, ζ, η, controlrate)
-# 		output_mean,output_std,time_mean,time_std = runSim()
-# 		output_muX0_mean[count,:] = [X₀ μ minimum(output_mean[:,3])]
-# 		output_muX0_std[count,:] = [X₀ μ output_std[argmin(output_mean[:,3]),3]]
-# 		time_muX0_mean[count,:] = [X₀ μ minimum(time_mean[:,3])]
-# 		time_muX0_std[count,:] = [X₀ μ time_std[argmin(time_mean[:,3]),3]]
-# 		global count +=1
-# 	end
-# end
+global count = 1
+for X₀ = 500:100:1500
+	for μ = 1e-6:1e-6:1e-5
+		rates = (b₁, d₁, b₂, d₂, γ₁₁, γ₁₂, γ₂₁, γ₂₂, α₁, α₂, μ, ζ, η, controlrate)
+		output_mean,output_std,time_mean,time_std = runSim()
+		output_muX0_mean[count,:] = [X₀ μ minimum(output_mean[:,3])]
+		output_muX0_std[count,:] = [X₀ μ output_std[argmin(output_mean[:,3]),3]]
+		time_muX0_mean[count,:] = [X₀ μ minimum(time_mean[:,3])]
+		time_muX0_std[count,:] = [X₀ μ time_std[argmin(time_mean[:,3]),3]]
+		global count +=1
+	end
+end
 
 #R code to generate heatmaps for the probability of success of the protocols, the average time to success, and the variances of these
 using RCall
