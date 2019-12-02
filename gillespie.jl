@@ -2,25 +2,40 @@
 # a time series for the protocol.
 
 # Parameters
-b₁ = 0.005 # susceptible birth rate
-d₁ = 0.001 # susceptible death rate
-b₂ = 0.005 # resistant birth rate
-d₂ = 0.004 # resistant death rate
+# b₁ = 0.005 # susceptible birth rate
+# d₁ = 0.001 # susceptible death rate
+# b₂ = 0.005 # resistant birth rate
+# d₂ = 0.004 # resistant death rate
+# γ₁₁ = 1e-5 # susceptible death rate from other susceptible
+# γ₁₂ = 1e-5 # susceptible death rate from resistant
+# γ₂₁ = 1e-5 # resistant death rate from susceptible
+# γ₂₂ = 1e-5 # resistant death rate from other resistant
+# α₁ = 0.0001 # susceptible death rate from antibiotic
+# α₂ = 0 # resistant death rate from antibiotic
+# μ = 0.10e-6 # mutation rate
+# μₐ = 3*μ # mutation rate cause by antibiotic
+# η = 0 #4e-3 # pasmid transfer rate
+
+b₁ = 0.2 # susceptible birth rate
+d₁ = 0.18 # susceptible death rate
+b₂ = 0.192 # resistant birth rate
+d₂ = 0.18 # resistant death rate
 γ₁₁ = 1e-5 # susceptible death rate from other susceptible
-γ₁₂ = 1e-5 # susceptible death rate from resistant
-γ₂₁ = 1e-5 # resistant death rate from susceptible
+γ₁₂ = 0.5e-5 # susceptible death rate from resistant
+γ₂₁ = 2e-5 # resistant death rate from susceptible
 γ₂₂ = 1e-5 # resistant death rate from other resistant
-α₁ = 0.0001 # susceptible death rate from antibiotic
-α₂ = 0 # resistant death rate from antibiotic
-μ = 0.10e-6 # mutation rate
-μₐ = 3*μ # mutation rate cause by antibiotic
+α₁ = 0.04 # susceptible death rate from antibiotic
+α₂ = 0.0 # resistant death rate from antibiotic
+μ = 1e-5 # mutation rate
+μₐ = 10*μ # mutation rate cause by antibiotic
 η = 0 #4e-3 # pasmid transfer rate
+init_pop = 1e3 #initial population size
 
 # Initial conditions
-antibiotic_amount = 100.0 # amount of antibiotic when on
-durOn = 700 # durtation the antibiotic is on
-durOff = 1500 # duration the antibiotic is off
-time = 10000 # length of process
+antibiotic_amount = 1.0 # amount of antibiotic when on
+durOn = 125 # durtation the antibiotic is on
+durOff = 75 # duration the antibiotic is off
+time = 5000 # length of process
 
 
 
@@ -44,7 +59,6 @@ time = 10000 # length of process
 # durOn = 2 # durtation the antibiotic is on
 # durOff = 8 # duration the antibiotic is off
 # time = 1000 # length of process
-init_pop = 1e3 # initial number of susceptible, n₁
 rates = (b₁, d₁, b₂, d₂, γ₁₁, γ₁₂, γ₂₁, γ₂₂, α₁, α₂, μ, μₐ, η)
 
 # Install required packages. Comment out when installed.
@@ -64,8 +78,8 @@ LV_model = @reaction_network begin
 	b₂, n₂ → 2n₂ # n₂ birth
 	d₂, n₂ → 0 # n₂ death
 	γ₁₁, n₁ + n₁ → 0 # self competition of n₁
-	γ₁₂, n₁ + n₂ → 0 # competition to n₁ from n₂
-	γ₂₁, n₂ + n₁ → 0 # competition to n₂ from n₁
+	a*γ₂₁+(1-a)*γ₁₂, n₁ + n₂ → 0 # competition to n₁ from n₂
+	a*γ₁₂+(1-a)*γ₂₁, n₂ + n₁ → 0 # competition to n₂ from n₁
 	γ₂₂, n₂ + n₂ → 0 # self competition of n₂
 	α₁, a + n₁ → a # death by antibiotic
 	α₂, a + n₂ → a # death by antibiotic, α₂ < α₁

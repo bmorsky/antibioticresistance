@@ -2,32 +2,60 @@
 # a time series for the protocol.
 using DiffEqBiological, DifferentialEquations, Plots, Statistics
 
-num_sims = 10
-control = 10 # initial input rate of bacteria
-time = 1000 # length of process
-X₀ = 1e4 # initial number of susceptible, n₁
+num_sims = 200
+control = 1 # initial input rate of bacteria
+time = 2000 # length of process
+X₀ = 1e3 # initial number of susceptible, n₁
 
 # Stochastic LV chemical reaction system
 # Parameters, times are per hour
 
 # Parameters
-b₁ = 0.02 # susceptible birth rate
-d₁ = 0.014 # susceptible death rate
-b₂ = 0.01 # resistant birth rate
-d₂ = 0.005 # resistant death rate
-γ₁₁ = 1e-6 # susceptible death rate from other susceptible
-γ₁₂ = 1e-6 # susceptible death rate from resistant
-γ₂₁ = 1e-6 # resistant death rate from susceptible
-γ₂₂ = 1e-6 # resistant death rate from other resistant
-α₁ = 0.0008 # susceptible death rate from antibiotic
-α₂ = 0.00015 # resistant death rate from antibiotic
-μ = 1e-6 # mutation rate
-μₐ = 10*μ # mutation rate cause by antibiotic
+b₁ = 0.2 # susceptible birth rate
+d₁ = 0.18 # susceptible death rate
+b₂ = 0.195 # resistant birth rate
+d₂ = 0.18 # resistant death rate
+γ₁₁ = 1e-4 # susceptible death rate from other susceptible
+γ₁₂ = 0.1e-4 # susceptible death rate from resistant
+γ₂₁ = 10e-4 # resistant death rate from susceptible
+γ₂₂ = 1e-4 # resistant death rate from other resistant
+α₁ = 0.04 # susceptible death rate from antibiotic
+α₂ = 0.0 # resistant death rate from antibiotic
+μ = 2e-5 # mutation rate
+μₐ = 100*μ # mutation rate cause by antibiotic
 η = 0 #4e-3 # pasmid transfer rate
-init_pop = 1e4 #initial population size
+init_pop = 1e3 #initial population size
+
+β₁ = 0.2 # susceptible birth rate
+δ₁ = 0.18 # susceptible death rate
+β₂ = 0.1 # resistant birth rate
+δ₂ = 0.09 # resistant death rate
+γ₁₁ = 1e-5 # susceptible death rate from other susceptible
+γ₂₂ = 1e-5 # resistant death rate from other resistant
+α₁ = 0.03 # susceptible death rate from antibiotic
+α₂ = 0.0 # resistant death rate from antibiotic
+μ = 2e-5 # mutation rate
+η = 0.0 # 4e-3 # pasmid transfer rate
+
+
+
+# b₁ = 0.02 # susceptible birth rate
+# d₁ = 0.014 # susceptible death rate
+# b₂ = 0.01 # resistant birth rate
+# d₂ = 0.005 # resistant death rate
+# γ₁₁ = 1e-6 # susceptible death rate from other susceptible
+# γ₁₂ = 1e-6 # susceptible death rate from resistant
+# γ₂₁ = 1e-6 # resistant death rate from susceptible
+# γ₂₂ = 1e-6 # resistant death rate from other resistant
+# α₁ = 0.008 # susceptible death rate from antibiotic
+# α₂ = 0.0015 # resistant death rate from antibiotic
+# μ = 1e-6 # mutation rate
+# μₐ = 10*μ # mutation rate cause by antibiotic
+# η = 0 #4e-3 # pasmid transfer rate
+# init_pop = 1e4 #initial population size
 
 # Initial conditions
-antibiotic_amount = 100.0 # amount of antibiotic when on
+antibiotic_amount = 1.0 # amount of antibiotic when on
 # durOn = 700 # durtation the antibiotic is on
 # durOff = 1500 # duration the antibiotic is off
 
@@ -52,8 +80,8 @@ LV_model = @reaction_network begin
 	b₂, n₂ → 2n₂ # n₂ birth
 	d₂, n₂ → 0 # n₂ death
 	γ₁₁, n₁ + n₁ → 0 # self competition of n₁
-	γ₁₂, n₁ + n₂ → 0 # competition to n₁ from n₂
-	γ₂₁, n₂ + n₁ → 0 # competition to n₂ from n₁
+	a*γ₂₁+(1-a)*γ₁₂, n₁ + n₂ → n₂ # competition to n₁ from n₂
+	a*γ₁₂+(1-a)*γ₂₁, n₂ + n₁ → n₁ # competition to n₂ from n₁
 	γ₂₂, n₂ + n₂ → 0 # self competition of n₂
 	α₁, a + n₁ → a # death by antibiotic
 	α₂, a + n₂ → a # death by antibiotic, α₂ < α₁
@@ -64,8 +92,8 @@ LV_model = @reaction_network begin
 end b₁ d₁ b₂ d₂ γ₁₁ γ₁₂ γ₂₁ γ₂₂ α₁ α₂ μ μₐ η
 
 # Solve system for various protocols averaged 100 times
-step_length = 1
-num_steps = 50
+step_length = 20
+num_steps = 15
 period = step_length*num_steps
 function runSim()
 	output_mean = zeros(convert(Int64,num_steps*(num_steps-1)/2),3)
@@ -129,18 +157,18 @@ output_muX0_mean = zeros(10^2,3)
 output_muX0_std = zeros(10^2,3)
 time_muX0_mean = zeros(10^2,3)
 time_muX0_std = zeros(10^2,3)
-global count = 1
-for X₀ = 500:100:1500
-	for μ = 1e-6:1e-6:1e-5
-		rates = (b₁, d₁, b₂, d₂, γ₁₁, γ₁₂, γ₂₁, γ₂₂, α₁, α₂, μ, ζ, η, controlrate)
-		output_mean,output_std,time_mean,time_std = runSim()
-		output_muX0_mean[count,:] = [X₀ μ minimum(output_mean[:,3])]
-		output_muX0_std[count,:] = [X₀ μ output_std[argmin(output_mean[:,3]),3]]
-		time_muX0_mean[count,:] = [X₀ μ minimum(time_mean[:,3])]
-		time_muX0_std[count,:] = [X₀ μ time_std[argmin(time_mean[:,3]),3]]
-		global count +=1
-	end
-end
+# global count = 1
+# for X₀ = 500:100:1500
+# 	for μ = 1e-6:1e-6:1e-5
+# 		rates = (b₁, d₁, b₂, d₂, γ₁₁, γ₁₂, γ₂₁, γ₂₂, α₁, α₂, μ, ζ, η, controlrate)
+# 		output_mean,output_std,time_mean,time_std = runSim()
+# 		output_muX0_mean[count,:] = [X₀ μ minimum(output_mean[:,3])]
+# 		output_muX0_std[count,:] = [X₀ μ output_std[argmin(output_mean[:,3]),3]]
+# 		time_muX0_mean[count,:] = [X₀ μ minimum(time_mean[:,3])]
+# 		time_muX0_std[count,:] = [X₀ μ time_std[argmin(time_mean[:,3]),3]]
+# 		global count +=1
+# 	end
+# end
 
 #R code to generate heatmaps for the probability of success of the protocols, the average time to success, and the variances of these
 using RCall
@@ -171,14 +199,7 @@ pt_std <- p + geom_raster(data=time_std,aes(x=V1,y=V2,fill=V3)) + scale_fill_vir
 
 
 q <- ggplot() + theme(plot.margin = unit(c(0, 0, 1.25, 0), "cm"),legend.title=element_blank()) + scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) + guides(fill = guide_colorbar(title.hjust = 0.5, title.position = "top"))
-
-q_muX0_mean <- q + geom_raster(data=output_muX0_mean,aes(x=V1,y=V2,fill=V3)) + scale_fill_viridis(option="viridis",limits = c(0,1)) + labs(x = expression(X[0]), y = expression(mu)) + ggtitle("Mean")
-q_muX0_std <- q + geom_raster(data=output_muX0_std,aes(x=V1,y=V2,fill=V3)) + scale_fill_viridis(option="viridis") + labs(x = expression(X[0]), y = expression(mu)) + ggtitle("SD")
-q_time_muX0_mean <- q + geom_raster(data=time_muX0_mean,aes(x=V1,y=V2,fill=V3)) + scale_fill_viridis(option="viridis",limits = c(0,1)) + labs(x = expression(X[0]), y = expression(mu)) + ggtitle("Mean time")
-q_time_muX0_std <- q + geom_raster(data=time_muX0_std,aes(x=V1,y=V2,fill=V3)) + scale_fill_viridis(option="viridis") + labs(x = expression(X[0]), y = expression(mu)) + ggtitle("SD time")
-
-save_plot(plot_grid(p_mean,p_std,pt_mean,pt_std,ncol=2),filename="~/Documents/Notre Dame/ND paper 2/Code/heatmap.png",base_height = 8,base_width = 8)
-save_plot(plot_grid(q_muX0_mean,q_muX0_std,q_time_muX0_mean,q_time_muX0_std,ncol=2),filename="~/Documents/Notre Dame/ND paper 2/Code/heatmap_muX0.png",base_height = 8,base_width = 8)
+save_plot(plot_grid(p_mean,p_std,pt_mean,pt_std,ncol=2),filename="~/Documents/Notre Dame/ND paper 2/Code/heatmap_k20.png",base_height = 8,base_width = 8)
 """
 
 
