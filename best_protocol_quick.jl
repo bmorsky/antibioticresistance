@@ -10,31 +10,33 @@ X₀ = 1e3 # initial number of susceptible, n₁
 
 # Parameters
 β₁ = 0.2 # susceptible birth rate
-δ₁ = 0.18 # susceptible death rate
-β₂ = 0.1 # resistant birth rate
-δ₂ = 0.09 # resistant death rate
+β₂ = 0.15 # resistant birth rate
+δ₁ = 0.05 # susceptible death rate
+δ₂ = 0.05 # resistant death rate
 γ₁₁ = 1e-5 # susceptible death rate from other susceptible
+γ₁₂ = 1e-5 # susceptible death rate from resistant
+γ₂₁ = 1e-5 # resistant death rate from susceptible
 γ₂₂ = 1e-5 # resistant death rate from other resistant
 α₁ = 0.03 # susceptible death rate from antibiotic
-α₂ = 0.0 # resistant death rate from antibiotic
+α₂ = 0.003 # resistant death rate from antibiotic
 μ = 2e-5 # mutation rate
 η = 0.0 # 4e-3 # pasmid transfer rate
 
 # Stochastic LV chemical reaction system
 LV_model = @reaction_network begin
     β₁, n₁ → 2n₁ # n₁ birth
-    δ₁, n₁ → 0 # n₁ death
 	β₂, n₂ → 2n₂ # n₂ birth
+    δ₁, n₁ → 0 # n₁ death
 	δ₂, n₂ → 0 # n₂ death
 	γ₁₁, n₁ + n₁ → n₁ # self competition of n₁
-	(a*κ + (1-a)/κ)*γ₁₁, n₁ + n₂ → n₂ # competition to n₁ from n₂
-	(a/κ + (1-a)*κ)*γ₂₂, n₂ + n₁ → n₁ # competition to n₂ from n₁
+	(a*κ + (1-a)/κ)*γ₁₂, n₁ + n₂ → n₂ # competition to n₁ from n₂
+	(a/κ + (1-a)*κ)*γ₂₁, n₂ + n₁ → n₁ # competition to n₂ from n₁
 	γ₂₂, n₂ + n₂ → n₂ # self competition of n₂
-	α₁, a + n₁ → a # death by antibiotic
-	α₂, a + n₂ → a # death by antibiotic, α₂ < α₁
+	a*α₁, n₁ → 0 # death by antibiotic
+	a*α₂, n₂ → 0 # death by antibiotic, α₂ < α₁
 	μ, n₁ → n₂ # mutation
-	μ, n₂ → n₁ # mutation
-	10*μ, a + n₁ → a + n₂ # mutation due to stress from the antibiotic
+	(a*10+(1-a))*μ, n₂ → n₁ # mutation
+	#a*10*μ, n₁ → n₂ # mutation due to stress from the antibiotic
 	η, n₁ + n₂ → 2n₂ # plasmid (resistance) transfer
 end β₁ δ₁ β₂ δ₂ γ₁₁ κ γ₂₂ α₁ α₂ μ η
 
