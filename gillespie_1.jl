@@ -3,15 +3,15 @@
 using Statistics, OrdinaryDiffEq, DiffEqJump, DiffEqBase, DifferentialEquations, Catalyst
 
 global γ = 1e-5 # inverse carrying capacity
-global κ = 1 # competition parameter κ
+global κ = 1000 # competition parameter κ
 
-global num_sims = 2 # number of realisations
+global num_sims = 10 # number of realisations
 global time = 100 # length of a simulation
 global X₀ = 1e4 # initial number of susceptible, X
 
 # Parameters for step lengths and periods
 global step_length = 5
-global num_steps = 5
+global num_steps = 20
 global period = step_length*num_steps
 
 
@@ -25,11 +25,14 @@ b₂ = b₁-c
 ω = γ/(1+exp(-κ*c)) # relative fitness of susceptible in the antibiotic-free regime
 ωₐ = γ/(1+exp(-κ*(c-0.9*a₁))) # relative fitness of susceptible in the antibiotic regime
 Δω = ω-ωₐ
-γ₁ = 0.5*γ
-γ₂ = γ-ω
-γ₃ = ω
-μ = 2e-5 # mutation rate
-rates = (a₁,a₂,b₁,b₂,d,γ₁,γ₂,γ₃,Δω,μ)
+γ₁₁ = γ
+γ₁₂ = γ/10
+γ₂₁ = γ*10
+ϝ₁₂ = γ*10
+ϝ₂₁ = γ/10
+γ₂₂ = γ*10
+μ = 1e-4#2e-5 # mutation rate
+rates = (a₁, a₂, b₁, b₂, d, γ₁₁, γ₁₂, γ₂₁, ϝ₁₂, ϝ₂₁, γ₂₂, μ)
 
 # Stochastic LV chemical reaction system
 LV_model = @reaction_network begin
@@ -37,16 +40,16 @@ LV_model = @reaction_network begin
 	b₂, Y → 2Y # Y birth
     d, X → 0 # X death
 	d, Y → 0 # Y death
-	γ₁, 2X → X # self competition of X
-	γ₂ + Ā*Δω, X+Y → Y # competition to X from Y
-	γ₃ - Ā*Δω, X+Y → X # competition to Y from X
-	γ₁, 2Y → Y # self competition of Y
+	γ₁₁, 2X → X # self competition of X
+	Ā*γ₁₂ + (1-Ā)*ϝ₁₂, X+Y → Y # competition to X from Y
+	Ā*γ₂₁ + (1-Ā)*ϝ₂₁, X+Y → X # competition to Y from X
+	γ₂₂, 2Y → Y # self competition of Y
 	a₁*Ā, X → 0 # death by antibiotic
 	a₂*Ā, Y → 0 # death by antibiotic, α₂ < α₁
 	(10*Ā + (1-Ā))*μ, X → Y # mutation X to Y
 	μ, Y → X # mutation Y to X
 	0, Ā → 0
-end a₁ a₂ b₁ b₂ d γ₁ γ₂ γ₃ Δω μ
+end a₁ a₂ b₁ b₂ d γ₁₁ γ₁₂ γ₂₁ ϝ₁₂ ϝ₂₁ γ₂₂ μ
 
 # Solve system for various protocols averaged 100 times
 output_mean = zeros(convert(Int64,num_steps*(num_steps-1)/2),3)
@@ -122,7 +125,5 @@ p_mean <- p + geom_raster(data=output_mean,aes(x=V1,y=V2,fill=V3)) + scale_fill_
 pt_mean <- p + geom_raster(data=time_mean,aes(x=V1,y=V2,fill=V3)) + scale_fill_viridis(option="viridis",limits = c(0,1)) + labs(x = "On", y = "Off") + ggtitle("Mean time")
 pt_std <- p + geom_raster(data=time_std,aes(x=V1,y=V2,fill=V3)) + scale_fill_viridis(option="viridis") + labs(x = "On", y = "Off") + ggtitle("SD time")
 
-save_plot(plot_grid(p_mean,pt_mean,pt_std,ncol=3),filename=paste("/home/bmorsky/antibiotic/output/",paste("gamma",gamma,"kappa",kappa,sep="_"),".png", sep=""),base_height = 4,base_width = 12)
-
-save(output_mean,file=paste("/home/bmorsky/wolbachia/output/",paste("output", alpha*10,"delay",delay*100,sep="_"),".Rda", sep=""))
+save_plot(plot_grid(p_mean,pt_mean,pt_std,ncol=3),filename=paste("/Users/brycemorsky/Desktop/",paste("test gamma",gamma,"kappa",kappa,sep="_"),".png", sep=""),base_height = 4,base_width = 12)
 """
