@@ -1,7 +1,7 @@
 # Simulations for the stochastic model for a given protocol. Results plotted as
 # a time series for the protocol.
 # Packages
-using DifferentialEquations, DiffEqBiological, Plots
+using Statistics, OrdinaryDiffEq, DiffEqJump, DiffEqBase, DifferentialEquations, Catalyst
 
 # Initial conditions
 control = 1.0 # amount of antibiotic when on
@@ -75,10 +75,10 @@ cbOff = DiscreteCallback(conditionOff,affectOff!)
 cbStop = DiscreteCallback(conditionStop,affectStop!)
 cbs = CallbackSet(cbOn,cbOff,cbStop)
 prob = DiscreteProblem([X₀; 0; control],(0.0,time),rates)
-jump_prob = JumpProblem(prob,Direct(),LV_model)
+jump_prob = JumpProblem(LV_model,prob,Direct())
 sol1 = solve(jump_prob,FunctionMap(),callback=cbs,tstops=protocol)
 sol2 = solve(jump_prob,FunctionMap(),callback=cbStop,tstops=protocol)
-
+plot(sol1,ylims=(0,1))
 # Plot the solution. The blue line is the susceptibles, the red resistant
 # mutants, and the green the antibiotic.
 #plot(sol)

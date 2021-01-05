@@ -1,7 +1,7 @@
 # Simulations for the stochastic model for a given protocol. Results plotted as
 # a time series for the protocol.
 # Packages
-using DifferentialEquations, DiffEqBiological, Plots
+using DifferentialEquations, Plots, Statistics, OrdinaryDiffEq, DiffEqJump, DiffEqBase, Catalyst
 
 # Initial conditions
 control = 1.0 # amount of antibiotic when on
@@ -75,8 +75,8 @@ cbOn = DiscreteCallback(conditionOn,affectOn!)
 cbOff = DiscreteCallback(conditionOff,affectOff!)
 cbStop = DiscreteCallback(conditionStop,affectStop!)
 cbs = CallbackSet(cbOn,cbOff,cbStop)
-prob = DiscreteProblem([X₀; 0; control],(0.0,time),rates)
-jump_prob = JumpProblem(prob,Direct(),LV_model)
+prob = DiscreteProblem([X₀; 0; control],(0.0,time),p)
+jump_prob = JumpProblem(LV_model,prob,Direct())
 sol1 = solve(jump_prob,FunctionMap(),callback=cbs,tstops=protocol)
 sol2 = solve(jump_prob,FunctionMap(),callback=cbStop,tstops=protocol)
 
@@ -106,11 +106,10 @@ output1 <- ts + geom_line(data=output1,aes(x=Time,y=Number,group=Type),size=1) +
 output2 <- ts + geom_line(data=output2,aes(x=Time,y=Number,group=Type),size=1) + ggtitle("Constant application")+ scale_color_manual(values=c("blue","red"),labels = c("Susceptible", "Resistant")) + aes(color = factor(Type)) + theme(legend.title=element_blank(),legend.position=c(.65,.55)) + labs(x = "Time", y = "Bacterial load") + scale_y_continuous(expand = c(0, 0)) + scale_x_continuous(limits = c(0,time), expand = c(0,0))
 
 plot_out <- plot_grid(output1,output2,labels=letters[1:2],ncol=2)
-save(best_protocol,file="~/Desktop/gillespie_ex.Rda")
 save_plot(plot_out,filename="~/Documents/Notre Dame/ND paper 2/Code/ts_protocol_vs_constant_stochastic.png",base_height = 5,base_width = 10)
 """
 
-
+#save(best_protocol,file="~/Desktop/gillespie_ex.Rda")
 # # Run multiple realizations. Solve system num_sims times and plot the results.
 # num_sims = 30
 # for sim = 1:num_sims
