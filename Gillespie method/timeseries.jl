@@ -1,5 +1,5 @@
 # code to generate time series (Figure 1)
-using Catalyst, DiffEqBase, DiffEqJump, DifferentialEquations, OrdinaryDiffEq, Plots
+using Catalyst, DiffEqBase, DiffEqJump, DifferentialEquations, Plots
 
 γ = 1e-5 # competition rate
 κ = 4 # strength of competition
@@ -16,7 +16,8 @@ d = 0.1 # death rate
 γ₂₂ = γ # resistant death rate from other resistant
 α = 0.4 # susceptible death rate from antibiotic
 μ = 1e-5 # mutation rate
-rates = (β₁, β₂, δ, γ₁₁, γ₁₂, γ₂₁, γ₂₂, α, μ)
+λ = 0.0
+rates = [b₁, b₂, d, γ₁₁, γ₁₂, γ₂₁, γ₂₂, α, μ, λ]
 
 # Stochastic LV chemical reaction system
 LV_model = @reaction_network begin
@@ -28,17 +29,17 @@ LV_model = @reaction_network begin
 	γ₁₂, n₁+n₂ → n₂ # competition to n₁ from n₂
  	γ₂₁, n₁+n₂ → n₁ # competition to n₂ from n₁
 	2*γ₂₂, n₂+n₂ → n₂ # self competition of n₂
-	A*α, n₁ → 0 # death by antibiotic
-	A*α/10, n₂ → 0 # death by antibiotic, α₂ < α₁
-	(9*A+1)*μ, n₁ → n₂ # mutation
+	0.0001*A*α, n₁ → 0 # death by antibiotic
+	0.0001*A*α/10, n₂ → 0 # death by antibiotic, α₂ < α₁
+	(0.0001*9*A+1)*μ, n₁ → n₂ # mutation
 	μ, n₂ → n₁ # mutation
-	0, A → 0
-end β₁ β₂ δ γ₁₁ γ₁₂ γ₂₁ γ₂₂ α μ
+	λ, A → 0
+end b₁ b₂ d γ₁₁ γ₁₂ γ₂₁ γ₂₂ α μ λ
 
 # Solve system for various protocols averaged 100 times
 # Callbacks
-durOn = 48 # 2.5hrs on
-durOff = 48 # 2.5hrs off
+durOn = 20#48 # 2.5hrs on
+durOff = 20#48 # 2.5hrs off
 
 # Controller conditions
 protocolOn = collect(0:durOn+durOff:time)
@@ -49,21 +50,24 @@ conditionOn(u,t,integrator) = t in (protocolOn)
 conditionOff(u,t,integrator) = t in (protocolOff)
 
 function affectOn!(integrator) # effect that occurs when the condition is met
-	integrator.u[3] = 1
+	integrator.p[10] = 0
+	integrator.u[3] = 10000
+	reset_aggregated_jumps!(integrator)
 end
 function affectOff!(integrator) # effect that occurs when the condition is met
-	integrator.u[3] = 0
+	integrator.p[10] = 0.1
+	reset_aggregated_jumps!(integrator)
 end
 cbOn = DiscreteCallback(conditionOn,affectOn!,save_positions = (false,false))
 cbOff = DiscreteCallback(conditionOff,affectOff!,save_positions = (false,false))
 cbs = CallbackSet(cbOn,cbOff)
 
-prob = DiscreteProblem([X₀; 0; 1],(0.0,time),rates)
+prob = DiscreteProblem([X₀; 0; 10000],(0.0,time),rates)
 jump_prob = JumpProblem(LV_model,prob,Direct(),save_positions=(false,false))
 sol = solve(jump_prob,SSAStepper(),saveat=0.1,tstops=protocol,callback=cbs)
-output1 = [sol[1,:] sol.t[:] zeros(length(sol[1,:]),1); sol[2,:] sol.t[:] ones(length(sol[2,:]),1);] #output
+output1 = [sol[3,:] sol.t[:] zeros(length(sol[1,:]),1); sol[2,:] sol.t[:] ones(length(sol[2,:]),1);] #output
 
-prob = DiscreteProblem([X₀; 0; 1],(0.0,time),rates)
+prob = DiscreteProblem([X₀; 0; 10000],(0.0,time),rates)
 jump_prob = JumpProblem(LV_model,prob,Direct(),save_positions=(false,false))
 sol = solve(jump_prob,SSAStepper(),saveat=0.1)
 output2 = [sol[1,:] sol.t[:] zeros(length(sol[1,:]),1); sol[2,:] sol.t[:] ones(length(sol[2,:]),1);] #output
