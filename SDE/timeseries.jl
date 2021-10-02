@@ -2,27 +2,26 @@
 using Catalyst, DiffEqBase, DiffEqJump, DifferentialEquations, StochasticDiffEq
 
 # Parameters
+const α = 1.6 # death rate from antibiotic
 const ξ = 0 # stochasticity ξ
-α = 1.6 # competition parameter α
 const bx = ξ+1.4#0.35 #0.3# susceptible birth rate
 const by = ξ+1.2#0.3 #0.25# resistant birth rate
 const d = ξ+0.4#0.1 #0.05# death rate
-const T = 336 #1344 # length of a simulation
 const m = 10 # mutant stress
-const κ = 4 # competition parameter κ
-const γ = 1e-10 #1e-5
+const num_sims = 200 # number of realisations
+const T = 336 # length of a time in hours (2 weeks)
+const γ = 1e-10 # interaction rate
 const γxx = γ # susceptible death rate from other susceptible
 const γxy = γ/κ # susceptible death rate from resistant
 const γyx = γ*κ # resistant death rate from susceptible
 const γyy = γ # resistant death rate from other resistant
-const μ = 1e-9# 1e-5 # mutation rate μ
-const λ = 0.0
+const κ = 4 # competition parameter κ
+const λ = 0.0 # antibiotic degredation rate
+const μ = 1e-9 # mutation rate μ
 
+# Initial conditions
 const X₀ = 1000000000
 const A₀ = 10000
-rates = [bx, by, d, γxx, γxy, γyx, γyy, α, μ, λ, m]
-
-protocol = collect(0:0.05:T)
 
 # Stochastic LV chemical reaction system
 LV_model = @reaction_network begin
@@ -35,14 +34,14 @@ LV_model = @reaction_network begin
  	γyx*X, Y → 0 # competition to Y from X
 	γyy*Y, Y → 0 # self competition of Y
 	0.0001*A*α, X → 0 # death by antibiotic
-	0.0001*A*α/10, Y → 0 # death by antibiotic
+	0.00001*A*α, Y → 0 # death by antibiotic
 	(0.0001*(m-1)*A+1)*μ, X → Y # mutation
 	μ, Y → X # mutation
 	λ, A → 0
 end bx by d γxx γxy γyx γyy α μ λ m
 
 # Switching protocols
-# Controller conditions
+protocol = collect(0:0.05:T) # time stops for callbacks
 durOn = 48
 durOff = 48
 # Controller conditions
@@ -76,8 +75,8 @@ cbOff = DiscreteCallback(conditionOff,affectOff!,save_positions = (false,false))
 cbNonnegX = DiscreteCallback(conditionNonnegX,affectNonnegX!,save_positions = (false,false))
 cbNonnegY = DiscreteCallback(conditionNonnegY,affectNonnegY!,save_positions = (false,false))
 cbEnd = DiscreteCallback(conditionEnd,affectEnd!,save_positions = (false,false))
-cbsPulse = CallbackSet(cbOn,cbOff,cbNonnegX,cbNonnegY,cbEnd)
-cbsConst = CallbackSet(cbNonnegX,cbNonnegY,cbEnd)
+cbsPulse = CallbackSet(cbOn,cbOff,cbNonnegX,cbNonnegY,cbEnd,save_positions = (false,false))
+cbsConst = CallbackSet(cbNonnegX,cbNonnegY,cbEnd,save_positions = (false,false))
 
 prob = SDEProblem(LV_model,[X₀; 0; A₀],(0.0,T),rates)
 sol = solve(prob,EM(),dt=0.05,saveat=0.1,tstops=protocol,callback=cbsPulse)
